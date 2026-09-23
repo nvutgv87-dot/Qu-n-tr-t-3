@@ -1,18 +1,21 @@
 import React from 'react';
 import { AppSettings } from '../types';
 import { AVAILABLE_TEAMS } from '../data/defaultConfig';
-import { Settings, Shield, Award, Calendar as CalendarIcon, UserCheck } from 'lucide-react';
+import { Settings, Shield, Award, Calendar as CalendarIcon, UserCheck, Cloud, RefreshCw } from 'lucide-react';
+import { SyncStatus } from '../services/firebase';
 
 interface HeaderProps {
   settings: AppSettings;
   onUpdateTeam: (newTeam: string) => void;
   onOpenSettings: () => void;
+  syncStatus?: SyncStatus;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   settings,
   onUpdateTeam,
   onOpenSettings,
+  syncStatus = 'connected',
 }) => {
   const today = new Date();
   const dateFormatted = today.toLocaleDateString('vi-VN', {
@@ -79,6 +82,40 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-1.5 text-slate-500">
               <CalendarIcon className="w-3.5 h-3.5 text-blue-600" />
               <span className="capitalize">{dateFormatted}</span>
+            </div>
+
+            {/* Firebase Cloud Live Status */}
+            <div
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                syncStatus === 'connected'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : syncStatus === 'syncing'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : syncStatus === 'connecting'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+              title="Cơ sở dữ liệu đám mây Firebase Realtime (Dự án: quan-li-to---3)"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  syncStatus === 'connected'
+                    ? 'bg-emerald-500 animate-pulse'
+                    : syncStatus === 'syncing' || syncStatus === 'connecting'
+                    ? 'bg-amber-500 animate-spin'
+                    : 'bg-slate-400'
+                }`}
+              />
+              <Cloud className="w-3.5 h-3.5 opacity-80" />
+              <span>
+                {syncStatus === 'connected'
+                  ? 'Firebase Realtime'
+                  : syncStatus === 'syncing'
+                  ? 'Đang đồng bộ...'
+                  : syncStatus === 'connecting'
+                  ? 'Đang kết nối...'
+                  : 'Ngoại tuyến'}
+              </span>
             </div>
 
             <button

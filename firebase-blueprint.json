@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "Settings": {
+      "title": "Settings",
+      "description": "Cấu hình chung của tổ và lớp học",
+      "type": "object",
+      "properties": {
+        "className": { "type": "string" },
+        "teamName": { "type": "string" },
+        "leaderName": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "schoolYear": { "type": "string" },
+        "schoolName": { "type": "string" }
+      },
+      "required": ["className", "teamName", "leaderName", "teacherName"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Thành viên trong tổ học sinh",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "team": { "type": "string" },
+        "role": { "type": "string" },
+        "gender": { "type": "string" }
+      },
+      "required": ["id", "name", "team"]
+    },
+    "PointRecord": {
+      "title": "PointRecord",
+      "description": "Bản ghi điểm cộng trừ thi đua",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "group": { "type": "string" },
+        "title": { "type": "string" },
+        "points": { "type": "number" },
+        "date": { "type": "string" },
+        "recordedBy": { "type": "string" }
+      },
+      "required": ["id", "studentId", "points", "date"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Bản ghi chuyên cần điểm danh",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "studentId", "date", "status"]
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "Cấu hình tổ và thông tin giáo viên"
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Danh sách thành viên của tổ"
+    },
+    "/points/{pointId}": {
+      "schema": { "$ref": "#/entities/PointRecord" },
+      "description": "Lịch sử ghi điểm thi đua của tổ"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Lịch sử điểm danh chuyên cần của tổ"
+    }
+  }
+}

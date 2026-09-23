@@ -24,6 +24,20 @@ import {
   calculateScoreSummary,
   getCurrentWeekRange,
 } from './services/storage';
+import {
+  subscribeToRealtimeFirestore,
+  updateSettingsInFirestore,
+  addStudentToFirestore,
+  updateStudentInFirestore,
+  deleteStudentFromFirestore,
+  replaceAllStudentsInFirestore,
+  addPointRecordToFirestore,
+  updatePointRecordInFirestore,
+  deletePointRecordFromFirestore,
+  saveAttendanceRecordsToFirestore,
+  resetAllFirestoreToDemo,
+  SyncStatus,
+} from './services/firebase';
 import { Header } from './components/Header';
 import { Navigation, TabType } from './components/Navigation';
 import { Dashboard } from './components/Dashboard';
@@ -44,6 +58,23 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('connecting');
+
+  // Real-time synchronization with Firebase Firestore
+  useEffect(() => {
+    const unsubscribe = subscribeToRealtimeFirestore(
+      (data) => {
+        if (data.settings) setSettings(data.settings);
+        if (data.students) setStudents(data.students);
+        if (data.points) setPointRecords(data.points);
+        if (data.attendance) setAttendanceRecords(data.attendance);
+      },
+      (status) => {
+        setSyncStatus(status);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   // Toast notification helper
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -58,10 +89,10 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Sync to storage
+  // Sync to Firestore & storage
   const handleUpdateSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
-    saveSettings(newSettings);
+    updateSettingsInFirestore(newSettings);
   };
 
   const handleUpdateTeam = (newTeam: string) => {
@@ -78,7 +109,7 @@ export default function App() {
     };
     const updated = [...students, newStudent];
     setStudents(updated);
-    saveStudents(updated);
+    addStudentToFirestore(newStudent);
     showToast(`Đã thêm học sinh ${studentData.name} vào tổ!`, 'success');
   };
 
@@ -92,20 +123,21 @@ export default function App() {
     let finalStudents: Student[];
     if (replaceAll) {
       finalStudents = formattedNewStudents;
+      replaceAllStudentsInFirestore(finalStudents);
       showToast(`Đã thay thế toàn bộ danh sách tổ bằng ${formattedNewStudents.length} thành viên!`, 'success');
     } else {
       finalStudents = [...students, ...formattedNewStudents];
+      formattedNewStudents.forEach((st) => addStudentToFirestore(st));
       showToast(`Đã thêm ${formattedNewStudents.length} thành viên mới vào tổ!`, 'success');
     }
 
     setStudents(finalStudents);
-    saveStudents(finalStudents);
   };
 
   const handleUpdateStudent = (updatedStudent: Student) => {
     const updated = students.map((s) => (s.id === updatedStudent.id ? updatedStudent : s));
     setStudents(updated);
-    saveStudents(updated);
+    updateStudentInFirestore(updatedStudent);
     showToast(`Đã cập nhật thông tin học sinh ${updatedStudent.name}`, 'success');
   };
 
@@ -113,7 +145,7 @@ export default function App() {
     const target = students.find((s) => s.id === studentId);
     const updated = students.filter((s) => s.id !== studentId);
     setStudents(updated);
-    saveStudents(updated);
+    deleteStudentFromFirestore(studentId);
     showToast(`Đã xóa học sinh ${target?.name || ''}`, 'info');
   };
 
@@ -123,26 +155,24 @@ export default function App() {
     autoDeductDemerits: boolean,
     demeritCandidates: { studentId: string; status: AttendanceStatus; note: string }[]
   ) => {
-    // Replace existing records for these students on this date
     const date = records[0]?.date;
     if (!date) return;
 
     const filtered = attendanceRecords.filter((a) => a.date !== date);
     const updatedAttendance = [...filtered, ...records];
     setAttendanceRecords(updatedAttendance);
-    saveAttendanceRecords(updatedAttendance);
+    saveAttendanceRecordsToFirestore(records);
 
     // Auto deduct demerits if selected and candidates exist
     if (autoDeductDemerits && demeritCandidates.length > 0) {
       const newPoints: PointRecord[] = [];
       demeritCandidates.forEach((cand) => {
         const title = cand.status === 'late' ? 'Đi học trễ' : 'Vắng không phép';
-        // Avoid duplicate point record for same student, same date, same reason
         const alreadyExists = pointRecords.some(
           (p) => p.studentId === cand.studentId && p.date === date && p.title === title
         );
         if (!alreadyExists) {
-          newPoints.push({
+          const pt: PointRecord = {
             id: `pt_att_${date}_${cand.studentId}_${Date.now()}`,
             studentId: cand.studentId,
             group: 'violation',
@@ -152,14 +182,15 @@ export default function App() {
             note: cand.note || `Tự động tạo từ điểm danh ngày ${date}`,
             recordedBy: settings.leaderName,
             createdAt: new Date().toISOString(),
-          });
+          };
+          newPoints.push(pt);
+          addPointRecordToFirestore(pt);
         }
       });
 
       if (newPoints.length > 0) {
         const updatedPoints = [...pointRecords, ...newPoints];
         setPointRecords(updatedPoints);
-        savePointRecords(updatedPoints);
         showToast(
           `Đã lưu điểm danh và tự động áp dụng ${newPoints.length} lượt trừ điểm chuyên cần (-0.25đ)!`,
           'success'
@@ -180,7 +211,7 @@ export default function App() {
     };
     const updated = [newRecord, ...pointRecords];
     setPointRecords(updated);
-    savePointRecords(updated);
+    addPointRecordToFirestore(newRecord);
     showToast(
       `Đã ghi nhận: ${recordData.title} (${recordData.points > 0 ? '+' : ''}${recordData.points}đ)`,
       'success'
@@ -190,31 +221,42 @@ export default function App() {
   const handleUpdatePointRecord = (updatedRecord: PointRecord) => {
     const updated = pointRecords.map((p) => (p.id === updatedRecord.id ? updatedRecord : p));
     setPointRecords(updated);
-    savePointRecords(updated);
+    updatePointRecordInFirestore(updatedRecord);
     showToast(`Đã cập nhật lượt ghi nhận "${updatedRecord.title}"`, 'success');
   };
 
   const handleDeletePointRecord = (id: string) => {
     const updated = pointRecords.filter((p) => p.id !== id);
     setPointRecords(updated);
-    savePointRecords(updated);
+    deletePointRecordFromFirestore(id);
     showToast('Đã xóa lượt ghi nhận khỏi danh sách!', 'info');
   };
 
   // Reset to demo data
   const handleResetDemo = () => {
-    resetAllToDemo();
+    resetAllFirestoreToDemo();
     setSettings(loadSettings());
     setStudents(loadStudents());
     setPointRecords(loadPointRecords());
     setAttendanceRecords(loadAttendanceRecords());
+    showToast('Đã khôi phục dữ liệu mẫu trên Firebase Realtime!', 'info');
   };
 
   const handleDataImported = () => {
-    setSettings(loadSettings());
-    setStudents(loadStudents());
-    setPointRecords(loadPointRecords());
-    setAttendanceRecords(loadAttendanceRecords());
+    const loadedStudents = loadStudents();
+    const loadedSettings = loadSettings();
+    const loadedPoints = loadPointRecords();
+    const loadedAtt = loadAttendanceRecords();
+    setSettings(loadedSettings);
+    setStudents(loadedStudents);
+    setPointRecords(loadedPoints);
+    setAttendanceRecords(loadedAtt);
+
+    // Sync imported data to Firestore
+    updateSettingsInFirestore(loadedSettings);
+    replaceAllStudentsInFirestore(loadedStudents);
+    loadedPoints.forEach((p) => addPointRecordToFirestore(p));
+    saveAttendanceRecordsToFirestore(loadedAtt);
   };
 
   // Current week score summaries for dashboard & members
@@ -234,6 +276,7 @@ export default function App() {
         settings={settings}
         onUpdateTeam={handleUpdateTeam}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        syncStatus={syncStatus}
       />
 
       {/* Main Content Area */}

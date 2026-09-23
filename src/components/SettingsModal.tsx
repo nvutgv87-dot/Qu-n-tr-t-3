@@ -15,6 +15,7 @@ import {
   FileCode,
   Shield,
   Info,
+  Cloud,
 } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -278,11 +279,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
           </div>
 
-          {/* LocalStorage Note */}
-          <div className="flex items-start gap-2 text-[11px] text-slate-500 bg-amber-50/50 p-2.5 rounded-lg border border-amber-200/60">
-            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          {/* Firebase Realtime Cloud Note */}
+          <div className="flex items-start gap-2 text-[11px] text-emerald-800 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200/80">
+            <Cloud className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <p>
-              <strong>Lưu ý:</strong> Dữ liệu này được lưu trữ trực tiếp trên bộ nhớ trình duyệt (LocalStorage) của thiết bị này để tổ trưởng sử dụng nội bộ thuận tiện, không phải hệ thống chính thức của nhà trường.
+              <strong>Cơ sở dữ liệu Firebase Realtime:</strong> Dữ liệu được đồng bộ hóa tức thì qua đám mây Firebase (Dự án: <code className="font-mono text-[10px] bg-emerald-100/80 px-1 py-0.5 rounded">quan-li-to---3</code>), hỗ trợ truy cập nhiều thiết bị cùng lúc và tự động sao lưu.
             </p>
           </div>
         </div>

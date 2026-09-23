@@ -10,6 +10,7 @@ import {
   getCurrentWeekRange,
   getLastWeekRange,
 } from '../services/storage';
+import { saveReportNoteToFirestore, subscribeToReportNote } from '../services/firebase';
 import { generateStandaloneHTML } from '../services/htmlExporter';
 import {
   FileText,
@@ -84,16 +85,26 @@ export const ReportView: React.FC<ReportViewProps> = ({
           : 'Nhắc nhở toàn tổ duy trì nề nếp kỷ luật và không vi phạm quy định đồng phục.'
       );
     }
+
+    // Subscribe to Firestore cloud note
+    const unsub = subscribeToReportNote(selectedPeriod, (cloudData) => {
+      if (cloudData.praiseNote !== undefined) setPraiseNote(cloudData.praiseNote);
+      if (cloudData.remindNote !== undefined) setRemindNote(cloudData.remindNote);
+    });
+
+    return () => unsub();
   }, [selectedPeriod]);
 
   const handlePraiseChange = (val: string) => {
     setPraiseNote(val);
     localStorage.setItem(`report_praise_note_${selectedPeriod}`, val);
+    saveReportNoteToFirestore(selectedPeriod, { praiseNote: val });
   };
 
   const handleRemindChange = (val: string) => {
     setRemindNote(val);
     localStorage.setItem(`report_remind_note_${selectedPeriod}`, val);
+    saveReportNoteToFirestore(selectedPeriod, { remindNote: val });
   };
 
   const appendPraiseChip = (text: string) => {
